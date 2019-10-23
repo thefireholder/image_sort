@@ -178,9 +178,10 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         #down sample key points for each image!
         if type(des) == type(None):
             continue
-        if len(des) > 20:
+        
+        if len(des) > 50:
             np.random.shuffle(des)
-            des = des[0:20] #arbitary keypoint number I chose 500
+            des = des[0:50] #arbitary keypoint number I chose 500
             descriptors = np.append(descriptors,des,axis=0)
 
     # get cluster
@@ -194,13 +195,15 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         hierarchical = cluster.AgglomerativeClustering(dict_size)
         hierarchical.fit(descriptors)
         # finding cluster using mean = Sum / N
-        c = [[0,np.zeros(d)] for i in range(50)]
+        c = [[0,np.zeros(d)] for i in range(dict_size)]
         index = 0
         for i in hierarchical.labels_:
             c[i][1] += descriptors[index]
             c[i][0] += 1
             index += 1
-        vocabulary = np.array([c[i][1] / c[i][0] for i in range(50)])
+        
+        vocabulary = np.array([c[i][1] / c[i][0] for i in range(dict_size)])
+
 
     return vocabulary
 
@@ -222,8 +225,9 @@ for dirName, subdirList, fileList in os.walk(rootDir):
 X_train = np.asarray(X_train)
 y_train = np.asarray(y_train)
 
-z = buildDict(X_train[0:10],50,"sift","hierarchical")
-print(z.shape)
+print("building dictionary")
+z = buildDict(X_train,20,"sift","kmeans")
+
 """
 z = buildDict(X_train[0:10],50,"surf","hierarchical")
 print(z.shape)
@@ -274,13 +278,53 @@ def computeBow(image, vocabulary, feature_type):
     
     # get feature & Bag of word it
     kp, des = xfeature.detectAndCompute(image,None)
-    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 9)
+
+    # sometimes des returns None, in that case, return histogram of 0s
+    if type(des) == type(None):
+        return np.zeros(dict_size).shape
+
+    """
+    #down sample key points for each image!
+    if len(des) > 20:
+        np.random.shuffle(des)
+        des = des[0:20] #arbitary keypoint number I chose 500
+    """
+        
+    # label features
+    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 1)
+
+    
 
     #histogram representation
     Bow = np.histogram(labeled_des, bins=range(dict_size + 1))[0]
-
     return Bow
 
 #testing computeBow on some image
-Bow = computeBow(X_train[101],z,"sift")
-print(Bow)
+# first we need X test data
+X_test = []
+y_test = []
+rootDir = '../../data/test' # (NOTE CANNOT HAVE .DS_store in Test folder and Train folder)
+n = 0
+for dirName, subdirList, fileList in os.walk(rootDir):
+    #print('Found directory: %s' % dirName[16:])
+    n = n + 1
+    for fname in fileList:
+        image = cv2.imread('{}/{}'.format(dirName,fname),cv2.IMREAD_GRAYSCALE)
+        X_test.append(image)
+        y_test.append(n)
+
+X_test = np.asarray(X_test)
+y_test = np.asarray(y_test)
+
+#here we start grabbing Bow and training
+print("begin Bow representation for X_train")
+X_train_Bow = [computeBow(image,z,"sift") for image in X_train]
+print("begin Bow representation for X_test")
+X_test_Bow = [computeBow(image,z,"sift") for image in X_test]
+print("begin KNN")
+predicted_labels = KNN_classifier(X_train_Bow, y_train, X_test_Bow, num_neighbors = 9)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+
+print(accuracy)
+
+

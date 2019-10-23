@@ -1,0 +1,21 @@
+
+
+some results shown
+
+Bow + knn
+
+28%	Dict (X_train[:10], cluster = 50, sift, hierarchical, descriptorlimit=50) / Bow(k = 9)
+33%	Dict (X_train[:10], cluster = 50, sift, hierarchical, descriptorlimit=50) / Bow(k = 3)
+36%	Dict (X_train[:10], cluster = 50, sift, hierarchical, descriptorlimit=50) / Bow(k = 1)
+36%	Dict (X_train[:10], cluster = 50, sift, kmeans, descriptorlimit=50) / Bow(k = 1)
+36%	Dict (X_train[:10], cluster = 20, sift, kmeans, descriptorlimit=50) / Bow(k = 1)
+
+
+37.45%	Dict (X_train, cluster = 20, sift, kmeans, descriptorlimit=20) / Bow(k = 1)
+36.88%	Dict (X_train, cluster = 20, sift, kmeans, descriptorlimit=50) / Bow(k = 1)
+
+
+29.31%	Dict (X_train, cluster = 20, sift, kmeans, descriptorlimit=50) / Bow(k = 5)
+
+
+36.7%	Dict (X_train, cluster = 20, sift, kmeans, descriptorlimit=50) / Bow(k = 1) //no randomizer
