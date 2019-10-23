@@ -1,5 +1,5 @@
 import cv2
-import numpy
+import numpy as np
 import timeit
 from sklearn import neighbors, svm, cluster, metrics
 
@@ -83,9 +83,9 @@ def tinyImages(train_features, test_features, train_labels, test_labels, label_d
         for K in [1,3,6]:
             start = timeit.default_timer()
             
-            X_train = numpy.array([imresize(image, image_scale).flatten() for image in train_features])
+            X_train = np.array([imresize(image, image_scale).flatten() for image in train_features])
             y_train = train_labels
-            X_test = numpy.array([imresize(image, image_scale).flatten() for image in test_features])
+            X_test = np.array([imresize(image, image_scale).flatten() for image in test_features])
             
             predicted_labels = KNN_classifier(X_train, y_train, X_test, K)
             accuracy = reportAccuracy(test_labels, predicted_labels, label_dict)
@@ -95,7 +95,7 @@ def tinyImages(train_features, test_features, train_labels, test_labels, label_d
             accuracies.append(accuracy)
             runtimes.append(end-start)
 
-    classResult = numpy.append(accuracies,runtimes)
+    classResult = np.append(accuracies,runtimes)
     return classResult
 
 
@@ -115,8 +115,8 @@ for dirName, subdirList, fileList in os.walk(rootDir):
         y_train.append(n)
         #y_train.append(dirName[17:])
 
-X_train = numpy.asarray(X_train)
-y_train = numpy.asarray(y_train)
+X_train = np.asarray(X_train)
+y_train = np.asarray(y_train)
 
 X_test = []
 y_test = []
@@ -131,8 +131,8 @@ for dirName, subdirList, fileList in os.walk(rootDir):
         y_test.append(n)
         #y_test.append(dirName[16:])
 
-X_test = numpy.asarray(X_test)
-y_test = numpy.asarray(y_test)
+X_test = np.asarray(X_test)
+y_test = np.asarray(y_test)
 
 
 # test tinyImages
@@ -152,55 +152,55 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
     
     # the output 'vocabulary' should be dict_size x d, where d is the
     # dimention of the feature. each row is a cluster centroid / visual word.
-
+    print("started " + feature_type + " with " + clustering_type + " clustering")
+    print("cluster = " + str(dict_size))
+    
     descriptors = None;
+    d = None;
     xfeature = None;
     
     #choose feature describer
     if feature_type == 'sift':
-        descriptors = numpy.empty((0,128), int) #get all descriptors
+        d = 128
         xfeature = cv2.xfeatures2d.SIFT_create()
     elif feature_type == 'surf':
-        descriptors = numpy.empty((0,64), int)
+        d = 64
         xfeature = cv2.xfeatures2d.SURF_create()
     elif feature_type == 'orb':
-        descriptors = numpy.empty((0,32), int)
+        d = 32
         xfeature = cv2.ORB_create(nfeatures=500)
 
     # get feature
+    descriptors = np.empty((0,d), int) #get all descriptors
     for image in train_images:
-        sift = cv2.xfeatures2d.SIFT_create()
         kp, des = xfeature.detectAndCompute(image,None)
         
-        #maintain same number of key points for each image!
-        numpy.random.shuffle(des)
-        des = des[0:500] #arbitary keypoint number I chose 500
-        descriptors = numpy.append(descriptors,des,axis=0)
-    
+        #down sample key points for each image!
+        if type(des) == type(None):
+            continue
+        if len(des) > 20:
+            np.random.shuffle(des)
+            des = des[0:20] #arbitary keypoint number I chose 500
+            descriptors = np.append(descriptors,des,axis=0)
+
     # get cluster
     vocabulary = None
     if clustering_type == 'kmeans':
-        print("kmean begin")
         kmeans = cluster.KMeans(dict_size)
         kmeans.fit(descriptors)
-
-        print("kmean ended")
         vocabulary = kmeans.cluster_centers_
 
     if clustering_type == 'hierarchical':
-        print("hierarchical begin")
         hierarchical = cluster.AgglomerativeClustering(dict_size)
         hierarchical.fit(descriptors)
-        
-        print("hierarchical ended")
         # finding cluster using mean = Sum / N
-        c = [[0,numpy.zeros(descriptors[0].size)] for i in range(50)]
+        c = [[0,np.zeros(d)] for i in range(50)]
         index = 0
         for i in hierarchical.labels_:
             c[i][1] += descriptors[index]
             c[i][0] += 1
             index += 1
-        vocabulary = numpy.array([c[i][1] / c[i][0] for i in range(50)])
+        vocabulary = np.array([c[i][1] / c[i][0] for i in range(50)])
 
     return vocabulary
 
@@ -219,13 +219,23 @@ for dirName, subdirList, fileList in os.walk(rootDir):
         y_train.append(n)
 #y_train.append(dirName[17:])
 
-X_train = numpy.asarray(X_train)
-y_train = numpy.asarray(y_train)
+X_train = np.asarray(X_train)
+y_train = np.asarray(y_train)
 
 z = buildDict(X_train[0:10],50,"sift","hierarchical")
 print(z.shape)
-#z = buildDict(X_train[:10],50,"sift","kmeans")
-#print(z.shape)
+"""
+z = buildDict(X_train[0:10],50,"surf","hierarchical")
+print(z.shape)
+z = buildDict(X_train[0:10],50,"orb","hierarchical")
+print(z.shape)
+z = buildDict(X_train[0:10],50,"sift","kmeans")
+print(z.shape)
+z = buildDict(X_train[0:10],50,"surf","kmeans")
+print(z.shape)
+z = buildDict(X_train[0:10],50,"orb","kmeans")
+print(z.shape)
+"""
 
 """
 # sift - small example
@@ -241,3 +251,36 @@ print(len(kp))
 #cv2.imwrite('sift_keypoints.png',img)
 
 
+def computeBow(image, vocabulary, feature_type):
+    # extracts features from the image, and returns a BOW representation using a vocabulary
+    
+    # image is 2D array
+    # vocabulary is an array of size dict_size x d
+    # feature type is a string (from "sift", "surf", "orb") specifying the feature
+    # used to create the vocabulary
+    
+    # BOW is the new image representation, a normalized histogram
+    
+    xfeature = None
+    dict_size = len(vocabulary)
+    
+    #choose feature describer
+    if feature_type == 'sift':
+        xfeature = cv2.xfeatures2d.SIFT_create()
+    elif feature_type == 'surf':
+        xfeature = cv2.xfeatures2d.SURF_create()
+    elif feature_type == 'orb':
+        xfeature = cv2.ORB_create(nfeatures=500)
+    
+    # get feature & Bag of word it
+    kp, des = xfeature.detectAndCompute(image,None)
+    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 9)
+
+    #histogram representation
+    Bow = np.histogram(labeled_des, bins=range(dict_size + 1))[0]
+
+    return Bow
+
+#testing computeBow on some image
+Bow = computeBow(X_train[101],z,"sift")
+print(Bow)

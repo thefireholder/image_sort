@@ -28,7 +28,7 @@ def load_data():
 
     return train_images, test_images, train_labels, test_labels
 
-
+#DONE
 def KNN_classifier(train_features, train_labels, test_features, num_neighbors):
     # outputs labels for all testing images
 
@@ -48,7 +48,7 @@ def KNN_classifier(train_features, train_labels, test_features, num_neighbors):
     
     return predicted_categories
 
-
+#NOTDONE
 def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_lambda):
     # this function will train a linear svm for every category (i.e. one vs all)
     # and then use the learned linear classifiers to predict the category of
@@ -71,7 +71,7 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
     # indicating the predicted category for each test feature.
     return predicted_categories
 
-
+#DONE
 def imresize(input_image, target_size):
     # resizes the input image, represented as a 2D array, to a new image of size [target_size, target_size].
     r_image = cv2.resize(input_image,(target_size,target_size)) #resized
@@ -93,7 +93,7 @@ def reportAccuracy(true_labels, predicted_labels):
     accuracy = metrics.accuracy_score(true_labels, predicted_labels) * 100
     return accuracy
 
-
+#DONE
 def buildDict(train_images, dict_size, feature_type, clustering_type):
     # this function will sample descriptors from the training images,
     # cluster them, and then return the cluster centers.
@@ -109,59 +109,59 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
 
     # NOTE: Should you run out of memory or have performance issues, feel free to limit the 
     # number of descriptors you store per image.
-
+    print("started " + feature_type + " with " + clustering_type + " clustering")
+    print("cluster = " + str(dict_size))
+    
     descriptors = None;
+    d = None;
     xfeature = None;
     
     #choose feature describer
     if feature_type == 'sift':
-        descriptors = numpy.empty((0,128), int) #get all descriptors
+        d = 128
         xfeature = cv2.xfeatures2d.SIFT_create()
     elif feature_type == 'surf':
-        descriptors = numpy.empty((0,64), int)
+        d = 64
         xfeature = cv2.xfeatures2d.SURF_create()
     elif feature_type == 'orb':
-        descriptors = numpy.empty((0,32), int)
+        d = 32
         xfeature = cv2.ORB_create(nfeatures=500)
     
     # get feature
+    descriptors = np.empty((0,d), int) #get all descriptors
     for image in train_images:
-        sift = cv2.xfeatures2d.SIFT_create()
         kp, des = xfeature.detectAndCompute(image,None)
         
-        #maintain same number of key points for each image!
-        numpy.random.shuffle(des)
-        des = des[0:500] #arbitary keypoint number I chose 500
-        descriptors = numpy.append(descriptors,des,axis=0)
-
+        #down sample key points for each image!
+        if type(des) == type(None):
+            continue
+        if len(des) > 20:
+            np.random.shuffle(des)
+            des = des[0:20] #arbitary keypoint number I chose 500
+            descriptors = np.append(descriptors,des,axis=0)
+    
     # get cluster
     vocabulary = None
     if clustering_type == 'kmeans':
-        print("kmean begin")
         kmeans = cluster.KMeans(dict_size)
         kmeans.fit(descriptors)
-        
-        print("kmean ended")
         vocabulary = kmeans.cluster_centers_
-
-if clustering_type == 'hierarchical':
-    print("hierarchical begin")
-    hierarchical = cluster.AgglomerativeClustering(dict_size)
-    hierarchical.fit(descriptors)
     
-    print("hierarchical ended")
+    if clustering_type == 'hierarchical':
+        hierarchical = cluster.AgglomerativeClustering(dict_size)
+        hierarchical.fit(descriptors)
         # finding cluster using mean = Sum / N
-        c = [[0,numpy.zeros(descriptors[0].size)] for i in range(50)]
+        c = [[0,np.zeros(d)] for i in range(50)]
         index = 0
         for i in hierarchical.labels_:
             c[i][1] += descriptors[index]
             c[i][0] += 1
             index += 1
-    vocabulary = numpy.array([c[i][1] / c[i][0] for i in range(50)])
+        vocabulary = np.array([c[i][1] / c[i][0] for i in range(50)])
+    
+    return vocabulary
 
-return vocabulary
-
-
+#DONE
 def computeBow(image, vocabulary, feature_type):
     # extracts features from the image, and returns a BOW representation using a vocabulary
 
@@ -171,9 +171,27 @@ def computeBow(image, vocabulary, feature_type):
     # used to create the vocabulary
 
     # BOW is the new image representation, a normalized histogram
+    xfeature = None
+    dict_size = len(vocabulary)
+    
+    #choose feature describer
+    if feature_type == 'sift':
+        xfeature = cv2.xfeatures2d.SIFT_create()
+    elif feature_type == 'surf':
+        xfeature = cv2.xfeatures2d.SURF_create()
+    elif feature_type == 'orb':
+        xfeature = cv2.ORB_create(nfeatures=500)
+
+    # get feature & Bag of word it
+    kp, des = xfeature.detectAndCompute(image,None)
+    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 9)
+
+    #histogram representation
+    Bow = np.histogram(labeled_des, bins=range(dict_size + 1))[0]
+    
     return Bow
 
-
+#DONE
 def tinyImages(train_features, test_features, train_labels, test_labels):
     # Resizes training images and flattens them to train a KNN classifier using the training labels
     # Classifies the resized and flattened testing images using the trained classifier
@@ -207,7 +225,6 @@ def tinyImages(train_features, test_features, train_labels, test_labels):
             end = timeit.default_timer()
             
             classResult = np.append(classResult,[accuracy,end-start])
-            print(accuracy)
 
     return classResult
     

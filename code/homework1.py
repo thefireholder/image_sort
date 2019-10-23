@@ -45,6 +45,8 @@ if __name__ == "__main__":
         np.save(SAVEPATH + 'tiny_acc.npy', acc)
         np.save(SAVEPATH + 'tiny_time.npy', runtime)
 
+    print("tiny image done")
+
     # Create vocabularies, and save them in the result directory
     # You need to write the buildDict function
     vocabularies = []
@@ -52,7 +54,7 @@ if __name__ == "__main__":
     # e.g vocab_idx[i] will tell you which algorithms/neighbors were used to compute vocabulary i
     # This isn't used in the rest of the code so you can feel free to ignore it
 
-    for feature in ['sift', 'surf', 'orb']:
+    for feature in ['sift']: #in ['orb','sift', 'surf']:
         for algo in ['kmeans', 'hierarchical']:
             for dict_size in [20, 50]:
                 vocabulary = buildDict(train_images, dict_size, feature, algo)
@@ -61,14 +63,14 @@ if __name__ == "__main__":
                 vocabularies.append(vocabulary) # A list of vocabularies (which are 2D arrays)
                 vocab_idx.append(filename.split('.')[0]) # Save the map from index to vocabulary
 
-    print("so far")
+    print("dictionary built")
 
     # Compute the Bow representation for the training and testing sets
     test_rep = [] # To store a set of BOW representations for the test images (given a vocabulary)
     train_rep = [] # To store a set of BOW representations for the train images (given a vocabulary)
     features = ['sift'] * 4 + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used 
     # for vocabulary generation
-    
+
     # You need to write ComputeBow()
     for i, vocab in enumerate(vocabularies):
         for image in train_images: # Compute the BOW representation of the training set
@@ -82,7 +84,8 @@ if __name__ == "__main__":
         np.save(SAVEPATH + 'bow_test_' + str(i) + '.npy', np.asarray(test_rep)) # Save the representations for vocabulary i
         train_rep = [] # reset the list to save the following vocabulary
         
-    
+    print("Bow calculated")
+
     # Use BOW features to classify the images with a KNN classifier
     # A list to store the accuracies and one for runtimes
     knn_accuracies = []
@@ -90,7 +93,9 @@ if __name__ == "__main__":
 
     # Your code below, eg:
     # for i, vocab in enumerate(vocabularies):
-    # ... 
+    # ...
+
+    # NOTDONE
     
     np.save(SAVEPATH+'knn_accuracies.npy', np.asarray(knn_accuracies)) # Save the accuracies in the Results/ directory
     np.save(SAVEPATH+'knn_runtimes.npy', np.asarray(knn_runtimes)) # Save the runtimes in the Results/ directory
