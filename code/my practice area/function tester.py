@@ -1,7 +1,7 @@
 import cv2
 import numpy
 import timeit
-from sklearn import neighbors, svm, cluster
+from sklearn import neighbors, svm, cluster, metrics
 
 def imresize(input_image, target_size):
     # resizes the input image to a new image of size [target_size, target_size]. normalizes the output image
@@ -27,14 +27,14 @@ def reportAccuracy(true_labels, predicted_labels, label_dict):
     # label_dict is a 15x1 cell array where each entry is a string
     # containing the name of that category
     # accuracy is a scalar, defined in the spec (in %)
-    accuracy = (true_labels-predicted_labels==0).sum()/true_labels.size
-    
+    accuracy = metrics.accuracy_score(true_labels, predicted_labels) * 100
+    #accuracy = (true_labels-predicted_labels==0).sum()/true_labels.size
     return accuracy
 
 # reportAccuracy test
 """
-a=numpy.asarray([1,2,1,4,5,6])
-b=numpy.asarray([1,1,1,6,5,3])
+a=[1,2,1,4,5,6]
+b=[1,1,1,6,5,3]
 print(reportAccuracy(a,b, None))
 """
 
@@ -138,8 +138,8 @@ y_test = numpy.asarray(y_test)
 # test tinyImages
 x = tinyImages(X_train, X_test, y_train, y_test, None)
 print(x)
-
 """
+
 def buildDict(train_images, dict_size, feature_type, clustering_type):
     # this function will sample descriptors from the training images,
     # cluster them, and then return the cluster centers.
@@ -152,21 +152,59 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
     
     # the output 'vocabulary' should be dict_size x d, where d is the
     # dimention of the feature. each row is a cluster centroid / visual word.
+
+    descriptors = None;
+    xfeature = None;
     
-    descriptors = numpy.empty((0,128), int) #get all descriptors
+    #choose feature describer
+    if feature_type == 'sift':
+        descriptors = numpy.empty((0,128), int) #get all descriptors
+        xfeature = cv2.xfeatures2d.SIFT_create()
+    elif feature_type == 'surf':
+        descriptors = numpy.empty((0,64), int)
+        xfeature = cv2.xfeatures2d.SURF_create()
+    elif feature_type == 'orb':
+        descriptors = numpy.empty((0,32), int)
+        xfeature = cv2.ORB_create(nfeatures=500)
+
+    # get feature
     for image in train_images:
         sift = cv2.xfeatures2d.SIFT_create()
-        kp, des = sift.detectAndCompute(image,None)
+        kp, des = xfeature.detectAndCompute(image,None)
+        
+        #maintain same number of key points for each image!
+        numpy.random.shuffle(des)
+        des = des[0:500] #arbitary keypoint number I chose 500
         descriptors = numpy.append(descriptors,des,axis=0)
     
-    print("kmean begin")
-    kmeans = cluster.KMeans(dict_size)
-    kmeans.fit(descriptors)
+    # get cluster
+    vocabulary = None
+    if clustering_type == 'kmeans':
+        print("kmean begin")
+        kmeans = cluster.KMeans(dict_size)
+        kmeans.fit(descriptors)
 
-    print("kmean ended")
-    vocabulary = kmeans.cluster_centers_
+        print("kmean ended")
+        vocabulary = kmeans.cluster_centers_
+
+    if clustering_type == 'hierarchical':
+        print("hierarchical begin")
+        hierarchical = cluster.AgglomerativeClustering(dict_size)
+        hierarchical.fit(descriptors)
+        
+        print("hierarchical ended")
+        # finding cluster using mean = Sum / N
+        c = [[0,numpy.zeros(descriptors[0].size)] for i in range(50)]
+        index = 0
+        for i in hierarchical.labels_:
+            c[i][1] += descriptors[index]
+            c[i][0] += 1
+            index += 1
+        vocabulary = numpy.array([c[i][1] / c[i][0] for i in range(50)])
+
     return vocabulary
 
+# test build dictionary
 import os
 X_train = []
 y_train = []
@@ -184,11 +222,13 @@ for dirName, subdirList, fileList in os.walk(rootDir):
 X_train = numpy.asarray(X_train)
 y_train = numpy.asarray(y_train)
 
-z = buildDict(X_train[:10],50,"sift","kmeans")
+z = buildDict(X_train[0:10],50,"sift","hierarchical")
 print(z.shape)
-
+#z = buildDict(X_train[:10],50,"sift","kmeans")
+#print(z.shape)
 
 """
+# sift - small example
 img = cv2.imread('image2.png',cv2.IMREAD_GRAYSCALE)
 sift = cv2.xfeatures2d.SIFT_create()
 kp, des = sift.detectAndCompute(img,None)

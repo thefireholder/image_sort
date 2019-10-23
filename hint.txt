@@ -1,0 +1,44 @@
+do not reinvent the wheel
+use tools provided
+
+sklearn for kin
+cv for bilinear interpolation
+
+first, must install proper version to have sift included
+
+pip install opencv-python==3.4.2.16
+pip install opencv-contrib-python==3.4.2.16 
+
+
+also need to erase all  .ds_store
+find . -name '.DS_Store' -type f -delete
+
+(contrib package)
+
+look at ppt in the file for code
+
+
+
+you have to normalize your shift descriptor
+cv2.normalize
+
+accuracy function can be found in sklearn
+https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html
+
+3 billion result
+12:10-1:30 we can talk about it in office hour
+
+
+WHEN YOU ARE DONE
+
+	create result folder
+	use np.save
+	it uses address as first argument
+
+	put everything you have in that result folder
+
+
+
+email alex if anything
+
+	
