@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # e.g vocab_idx[i] will tell you which algorithms/neighbors were used to compute vocabulary i
     # This isn't used in the rest of the code so you can feel free to ignore it
 
-    for feature in ['sift']: #FIX in ['sift', 'surf','orb']:
+    for feature in ['sift', 'surf','orb']:
         for algo in ['kmeans', 'hierarchical']:
             for dict_size in [20, 50]:
                 vocabulary = buildDict(train_images, dict_size, feature, algo)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     # Compute the Bow representation for the training and testing sets
     test_rep = [] # To store a set of BOW representations for the test images (given a vocabulary)
     train_rep = [] # To store a set of BOW representations for the train images (given a vocabulary)
-    features = ['sift'] * 4 #FIX + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used
+    features = ['sift'] * 4 + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used
     # for vocabulary generation
 
     # You need to write ComputeBow()

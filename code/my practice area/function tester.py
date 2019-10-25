@@ -3,6 +3,7 @@ import numpy as np
 import timeit
 from sklearn import neighbors, svm, cluster, metrics
 
+
 def imresize(input_image, target_size):
     # resizes the input image to a new image of size [target_size, target_size]. normalizes the output image
     r_image = cv2.resize(input_image,(target_size,target_size)) #resized
@@ -299,7 +300,7 @@ def computeBow(image, vocabulary, feature_type):
 
 
 #testing computeBow on some image
-"""
+
 #first we need X training
 import os
 X_train = []
@@ -354,7 +355,7 @@ predicted_labels = KNN_classifier(X_train_Bow, y_train, X_test_Bow, num_neighbor
 accuracy = reportAccuracy(y_test, predicted_labels, None)
 
 print(accuracy)
-"""
+
 
 def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_lambda):
     # this function will train a linear svm for every category (i.e. one vs all)
@@ -378,24 +379,50 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
     # indicating the predicted category for each test feature.
     
     clfs = []
-    probabilities = np.empty((0,len(test_features)), int)
+    #probabilities = np.empty((0,len(test_features)), int)
     kernel = ''
+    
     
     if is_linear:
         kernel = 'rbf'
     else:
         kernel = 'linear'
-    
+    """
     for i in range(15):
         clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = svm_lambda,kernel=kernel)
         y = np.where(train_labels == i, 99, train_labels) # making it binary classification
         y = np.where(y != 99, 0, y)
         clf.fit(train_features, y)
-        probabilities = np.append(probabilities,[clf.predict_proba(test_features)[:,0]],axis=0)
+        probabilities = np.append(probabilities,[clf.predict_proba(test_features)[:,1]],axis=0)
+        print(clf.predict_proba(test_features))
+        print(clf.predict(test_features))
+        #print(y)
+    
     
     predicted_categories = np.argmax(probabilities, axis=0)
-
+    """
     
+    
+    probabilities = np.zeros((2,len(test_features)))
+    for i in range(15):
+        y = np.where(train_labels == i, 99, train_labels) # making it binary classification
+        y = np.where(y != 99, 0, y)
+        clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = svm_lambda,kernel=kernel)
+        clf.fit(train_features, y)
+        probability=clf.predict_proba(test_features)[:,1]
+        for j,x in enumerate(probability):
+            if x > probabilities[1][j]:
+                probabilities[1][j] = x
+                probabilities[0][j] = i
+        print(y)
+        print(probability)
+        print(probabilities[0])
+        print("")
+        print("")
+        print("")
+    
+
+    predicted_categories = probabilities[0]
     return predicted_categories
 
 #testing svm concept
@@ -410,6 +437,7 @@ print(clf.predict([[1, 1]]))
 print(clf.predict_proba([[-1, -1]]))
 """
 
+"""
 #testing SVM_classifier on some image
 #first we need X training
 import os
@@ -445,16 +473,67 @@ for dirName, subdirList, fileList in os.walk(rootDir):
 X_test = np.asarray(X_test)
 y_test = np.asarray(y_test)
 
-z = buildDict(X_train,50,"sift","kmeans")
+import sys
+np.set_printoptions(threshold=sys.maxsize)
+print("Begin building dictionary")
+z = buildDict(X_train[:10],20,"sift","kmeans")
+
 print("begin Bow representation for X_train")
 X_train_Bow = [computeBow(image,z,"sift") for image in X_train]
 print("begin Bow representation for X_test")
 X_test_Bow = [computeBow(image,z,"sift") for image in X_test]
 print("begin KNN")
 
+
+
+y = np.where(y_train == 0, -1, y_train) # making it binary classification
+y = np.where(y != -1, 0, y)
+y = np.where(y == -1, 1, y)
+print(y)
+clf = svm.SVC(gamma='auto',probability=True,C = 1)
+clf.fit(X_train_Bow, y)
+prediction = clf.predict(X_test_Bow)
+probability = clf.predict_proba(X_test_Bow)
+print(prediction)
+print(probability)
+
+"""
+
+"""
+prediction = clf.predict(X_train_Bow)
+probability = clf.predict_proba(X_train_Bow)
+print(prediction)
+print(probability)
+"""
+
+"""
 predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 1)
 accuracy = reportAccuracy(y_test, predicted_labels, None)
 print(accuracy)
+"""
+
+"""
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 100)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 10)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+#print(predicted_labels)
+#print(y_test)
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 1)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 0.1)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 0.01)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 0.001)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+print(accuracy)
+"""
 
 """
 clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = 1,kernel="rbf")
