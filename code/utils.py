@@ -48,7 +48,7 @@ def KNN_classifier(train_features, train_labels, test_features, num_neighbors):
     
     return predicted_categories
 
-#NOTDONE
+#DONE
 def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_lambda):
     # this function will train a linear svm for every category (i.e. one vs all)
     # and then use the learned linear classifiers to predict the category of
@@ -69,6 +69,25 @@ def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_l
 
     # predicted_categories is an M x 1 array, where each entry is an integer
     # indicating the predicted category for each test feature.
+    clfs = []
+    probabilities = np.empty((0,len(test_features)), int)
+    kernel = ''
+    
+    if is_linear:
+        kernel = 'rbf'
+    else:
+        kernel = 'linear'
+    
+    for i in range(15):
+        clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = svm_lambda,kernel=kernel)
+        y = np.where(train_labels == i, 99, train_labels) # making it binary classification
+        y = np.where(y != 99, 0, y)
+        clf.fit(train_features, y)
+        probabilities = np.append(probabilities,[clf.predict_proba(test_features)[:,0]],axis=0)
+    
+    predicted_categories = np.argmax(probabilities, axis=0)
+    
+
     return predicted_categories
 
 #DONE
@@ -109,8 +128,8 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
 
     # NOTE: Should you run out of memory or have performance issues, feel free to limit the 
     # number of descriptors you store per image.
-    print("started " + feature_type + " with " + clustering_type + " clustering")
-    print("cluster = " + str(dict_size))
+    print("buildDict("+str(dict_size)+", "+feature_type+", "+clustering_type+")")
+    
     
     descriptors = None;
     d = None;
@@ -135,30 +154,33 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
         #down sample key points for each image!
         if type(des) == type(None):
             continue
+        
         if len(des) > 20:
             np.random.shuffle(des)
             des = des[0:20] #arbitary keypoint number I chose 500
             descriptors = np.append(descriptors,des,axis=0)
-    
+
     # get cluster
     vocabulary = None
     if clustering_type == 'kmeans':
         kmeans = cluster.KMeans(dict_size)
         kmeans.fit(descriptors)
         vocabulary = kmeans.cluster_centers_
-    
+
     if clustering_type == 'hierarchical':
         hierarchical = cluster.AgglomerativeClustering(dict_size)
         hierarchical.fit(descriptors)
         # finding cluster using mean = Sum / N
-        c = [[0,np.zeros(d)] for i in range(50)]
+        c = [[0,np.zeros(d)] for i in range(dict_size)]
         index = 0
         for i in hierarchical.labels_:
             c[i][1] += descriptors[index]
             c[i][0] += 1
             index += 1
-        vocabulary = np.array([c[i][1] / c[i][0] for i in range(50)])
-    
+
+        vocabulary = np.array([c[i][1] / c[i][0] for i in range(dict_size)])
+
+
     return vocabulary
 
 #DONE
@@ -181,15 +203,29 @@ def computeBow(image, vocabulary, feature_type):
         xfeature = cv2.xfeatures2d.SURF_create()
     elif feature_type == 'orb':
         xfeature = cv2.ORB_create(nfeatures=500)
-
+    
     # get feature & Bag of word it
     kp, des = xfeature.detectAndCompute(image,None)
-    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 9)
+
+    # sometimes des returns None, in that case, return histogram of 0s
+    if type(des) == type(None):
+        return np.zeros(dict_size)
+    
+    """
+        #down sample key points for each image!
+        if len(des) > 20:
+        np.random.shuffle(des)
+        des = des[0:20] #arbitary keypoint number I chose 500
+        """
+    
+    # label features
+    labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 1)
+    
 
     #histogram representation
     Bow = np.histogram(labeled_des, bins=range(dict_size + 1))[0]
-    
     return Bow
+
 
 #DONE
 def tinyImages(train_features, test_features, train_labels, test_labels):

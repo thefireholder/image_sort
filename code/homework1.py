@@ -30,6 +30,7 @@ if __name__ == "__main__":
     # Load data, the function is written for you in utils
     train_images, test_images, train_labels, test_labels = load_data()
     
+    
     if args.tiny:
         # You have to write the tinyImages function
         tinyRes = tinyImages(train_images, test_images, train_labels, test_labels)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     # e.g vocab_idx[i] will tell you which algorithms/neighbors were used to compute vocabulary i
     # This isn't used in the rest of the code so you can feel free to ignore it
 
-    for feature in ['sift']: #in ['orb','sift', 'surf']:
+    for feature in ['sift']: #FIX in ['sift', 'surf','orb']:
         for algo in ['kmeans', 'hierarchical']:
             for dict_size in [20, 50]:
                 vocabulary = buildDict(train_images, dict_size, feature, algo)
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     # Compute the Bow representation for the training and testing sets
     test_rep = [] # To store a set of BOW representations for the test images (given a vocabulary)
     train_rep = [] # To store a set of BOW representations for the train images (given a vocabulary)
-    features = ['sift'] * 4 + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used 
+    features = ['sift'] * 4 #FIX + ['surf'] * 4 + ['orb'] * 4 # Order in which features were used
     # for vocabulary generation
 
     # You need to write ComputeBow()
@@ -86,6 +87,7 @@ if __name__ == "__main__":
         
     print("Bow calculated")
 
+    # NOTDONE
     # Use BOW features to classify the images with a KNN classifier
     # A list to store the accuracies and one for runtimes
     knn_accuracies = []
@@ -94,12 +96,26 @@ if __name__ == "__main__":
     # Your code below, eg:
     # for i, vocab in enumerate(vocabularies):
     # ...
+    for detector in ['sift','surf','orb']:
+        for clutser_type in ["kmeans", "hierarchical"]:
+            for dict_size in [20, 50]:
+                start = timeit.default_timer()
+                dict = buildDict(X_train[:10],dict_size,detector,clutser_type)
+                X_train_Bow = [computeBow(image,z,clutser_type) for image in X_train]
+                X_test_Bow = [computeBow(image,z,clutser_type) for image in X_test]
+                predicted_labels = KNN_classifier(X_train_Bow, y_train, X_test_Bow, num_neighbors = 9)
+                accuracy = reportAccuracy(y_test, predicted_labels)
+                end = timeit.default_timer()
+                runtimes.append(end-start)
+                knn_accuracies.append(accuracy)
 
-    # NOTDONE
     
     np.save(SAVEPATH+'knn_accuracies.npy', np.asarray(knn_accuracies)) # Save the accuracies in the Results/ directory
     np.save(SAVEPATH+'knn_runtimes.npy', np.asarray(knn_runtimes)) # Save the runtimes in the Results/ directory
-    
+
+    print(knn_accuracies)
+    print(knn_runtimes)
+
     # Use BOW features to classify the images with 15 Linear SVM classifiers
     lin_accuracies = []
     lin_runtimes = []

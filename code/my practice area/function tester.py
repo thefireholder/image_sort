@@ -152,8 +152,6 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
     
     # the output 'vocabulary' should be dict_size x d, where d is the
     # dimention of the feature. each row is a cluster centroid / visual word.
-    print("started " + feature_type + " with " + clustering_type + " clustering")
-    print("cluster = " + str(dict_size))
     
     descriptors = None;
     d = None;
@@ -208,6 +206,7 @@ def buildDict(train_images, dict_size, feature_type, clustering_type):
     return vocabulary
 
 # test build dictionary
+"""
 import os
 X_train = []
 y_train = []
@@ -226,9 +225,8 @@ X_train = np.asarray(X_train)
 y_train = np.asarray(y_train)
 
 print("building dictionary")
-z = buildDict(X_train,20,"sift","kmeans")
-
-"""
+z = buildDict(X_train[0:10],50,"sift","hierarchical")
+print(z.shape)
 z = buildDict(X_train[0:10],50,"surf","hierarchical")
 print(z.shape)
 z = buildDict(X_train[0:10],50,"orb","hierarchical")
@@ -281,7 +279,7 @@ def computeBow(image, vocabulary, feature_type):
 
     # sometimes des returns None, in that case, return histogram of 0s
     if type(des) == type(None):
-        return np.zeros(dict_size).shape
+        return np.zeros(dict_size)
 
     """
     #down sample key points for each image!
@@ -294,12 +292,33 @@ def computeBow(image, vocabulary, feature_type):
     labeled_des = KNN_classifier(vocabulary, range(dict_size), des, num_neighbors = 1)
 
     
-
     #histogram representation
     Bow = np.histogram(labeled_des, bins=range(dict_size + 1))[0]
     return Bow
 
+
+
 #testing computeBow on some image
+"""
+#first we need X training
+import os
+X_train = []
+y_train = []
+rootDir = '../../data/train' # (NOTE CANNOT HAVE .DS_store in Test folder and Train folder)
+n = 0
+for dirName, subdirList, fileList in os.walk(rootDir):
+    #print('Found directory: %s' % dirName[17:])
+    n = n + 1
+    for fname in fileList:
+        image = cv2.imread('{}/{}'.format(dirName,fname),cv2.IMREAD_GRAYSCALE)
+        X_train.append(image)
+        y_train.append(n)
+#y_train.append(dirName[17:])
+
+X_train = np.asarray(X_train)
+y_train = np.asarray(y_train)
+
+
 # first we need X test data
 X_test = []
 y_test = []
@@ -317,14 +336,150 @@ X_test = np.asarray(X_test)
 y_test = np.asarray(y_test)
 
 #here we start grabbing Bow and training
+
+
+for detector in ['sift','surf','orb']:
+    for clutser_type in ["kmeans", "hierarchical"]:
+        for dict_size in [20, 50]:
+            print("buildDict(" + str(dict_size) + ", " + detector + ", " + clutser_type + ")")
+            z = buildDict(X_train[:10],dict_size,detector,clutser_type)
+
+print("begin Bow representation for X_train")
+X_train_Bow = [computeBow(image,z,"orb") for image in X_train]
+print("begin Bow representation for X_test")
+X_test_Bow = [computeBow(image,z,"orb") for image in X_test]
+print("begin KNN")
+
+predicted_labels = KNN_classifier(X_train_Bow, y_train, X_test_Bow, num_neighbors = 9)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
+
+print(accuracy)
+"""
+
+def SVM_classifier(train_features, train_labels, test_features, is_linear, svm_lambda):
+    # this function will train a linear svm for every category (i.e. one vs all)
+    # and then use the learned linear classifiers to predict the category of
+    # every test image. every test feature will be evaluated with all 15 svms
+    # and the most confident svm will "win". confidence, or distance from the
+    # margin, is w*x + b where '*' is the inner product or dot product and w and
+    # b are the learned hyperplane parameters.
+    
+    # train_features is an N x d matrix, where d is the dimensionality of
+    # the feature representation and N the number of training features.
+    # train_labels is an N x 1 array, where each entry is an integer
+    # indicating the ground truth category for each training image.
+    # test_features is an M x d matrix, where d is the dimensionality of the
+    # feature representation and M is the number of testing features.
+    # is_linear is a boolean. If true, you will train linear SVMs. Otherwise, you
+    # will use SVMs with a Radial Basis Function (RBF) Kernel.
+    # svm_lambda is a scalar, the value of the regularizer for the SVMs
+    
+    # predicted_categories is an M x 1 array, where each entry is an integer
+    # indicating the predicted category for each test feature.
+    
+    clfs = []
+    probabilities = np.empty((0,len(test_features)), int)
+    kernel = ''
+    
+    if is_linear:
+        kernel = 'rbf'
+    else:
+        kernel = 'linear'
+    
+    for i in range(15):
+        clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = svm_lambda,kernel=kernel)
+        y = np.where(train_labels == i, 99, train_labels) # making it binary classification
+        y = np.where(y != 99, 0, y)
+        clf.fit(train_features, y)
+        probabilities = np.append(probabilities,[clf.predict_proba(test_features)[:,0]],axis=0)
+    
+    predicted_categories = np.argmax(probabilities, axis=0)
+
+    
+    return predicted_categories
+
+#testing svm concept
+"""
+clf = svm.SVC(random_state=0,gamma='auto',probability=True)
+
+X = np.array([[-1, -1], [-2, -1], [1, 1], [2, 1]])
+y = np.array([1, 1, 2, 2])
+
+clf.fit(X, y)
+print(clf.predict([[1, 1]]))
+print(clf.predict_proba([[-1, -1]]))
+"""
+
+#testing SVM_classifier on some image
+#first we need X training
+import os
+X_train = []
+y_train = []
+rootDir = '../../data/train' # (NOTE CANNOT HAVE .DS_store in Test folder and Train folder)
+n = -2
+for dirName, subdirList, fileList in os.walk(rootDir):
+    #print('Found directory: %s' % dirName[17:])
+    n = n + 1
+    for fname in fileList:
+        image = cv2.imread('{}/{}'.format(dirName,fname),cv2.IMREAD_GRAYSCALE)
+        X_train.append(image)
+        y_train.append(n)
+#y_train.append(dirName[17:])
+
+X_train = np.asarray(X_train)
+y_train = np.asarray(y_train)
+                             
+# first we need X test data
+X_test = []
+y_test = []
+rootDir = '../../data/test' # (NOTE CANNOT HAVE .DS_store in Test folder and Train folder)
+n = -2
+for dirName, subdirList, fileList in os.walk(rootDir):
+    #print('Found directory: %s' % dirName[16:])
+    n = n + 1
+    for fname in fileList:
+        image = cv2.imread('{}/{}'.format(dirName,fname),cv2.IMREAD_GRAYSCALE)
+        X_test.append(image)
+        y_test.append(n)
+
+X_test = np.asarray(X_test)
+y_test = np.asarray(y_test)
+
+z = buildDict(X_train,50,"sift","kmeans")
 print("begin Bow representation for X_train")
 X_train_Bow = [computeBow(image,z,"sift") for image in X_train]
 print("begin Bow representation for X_test")
 X_test_Bow = [computeBow(image,z,"sift") for image in X_test]
 print("begin KNN")
-predicted_labels = KNN_classifier(X_train_Bow, y_train, X_test_Bow, num_neighbors = 9)
-accuracy = reportAccuracy(y_test, predicted_labels, None)
 
+predicted_labels = SVM_classifier(X_train_Bow, y_train, X_test_Bow, False, 1)
+accuracy = reportAccuracy(y_test, predicted_labels, None)
 print(accuracy)
 
+"""
+clf = svm.SVC(random_state=0,gamma='auto',probability=True,C = 1,kernel="rbf")
+y =np.where(y_train[:300] == 1, 99, y_train[:300])
+y =np.where(y != 99, 0, y)
 
+clf.fit(X_train_Bow, y)
+probabilities = clf.predict_proba(X_train_Bow)
+print(probabilities)
+print(clf.predict(X_train_Bow))
+print(probabilities[:,0])
+print(probabilities.shape)
+
+probabilities = np.empty((0,len(X_train_Bow)), int)
+a=clf.predict_proba(X_train_Bow)[:,0]
+print(probabilities.shape)
+print(np.array([a]).shape)
+probabilities = np.append(probabilities,[a],axis=0)
+probabilities = np.append(probabilities,[a],axis=0)
+print(probabilities)
+print(probabilities.shape)
+
+
+predicted_categories = np.argmax(probabilities, axis=0)
+print(predicted_categories.shape)
+print(predicted_categories)
+
+"""
